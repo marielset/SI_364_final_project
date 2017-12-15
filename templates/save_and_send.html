@@ -1,0 +1,16 @@
+<html>
+<title>Save and Send</title>
+<body>
+<h2>You have entered this song into the database: </h2>
+<h2><b>{{ song_name }}</b>,</h2>
+<h3>    by {{ song_artist }}</h3> <br><br>
+<div>
+{% for message in get_flashed_messages() %} 
+<strong>*** {{ message }} ***</strong>
+{% endfor %}
+</div>
+<h2>Would you like to send it to a friend?</h2>
+<a href={{url}}>Click here to send this song</a><br>
+<a href="/song/normal">Click here to continue</a>
+</body>
+</html>

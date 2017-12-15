@@ -1,0 +1,20 @@
+<html>
+<title>Songs</title>
+<body>
+<form action="http://localhost:5000/song_status" method="GET">
+  <ul>
+    {% for num in range(number) %}
+    <input type="radio" name="choice" value={{songs[num]['both']}}>{{ name }} by {{ songs[num]['artist'] }}</input></br>
+    {% endfor %}
+  </ul>
+<input type="submit" value="Save and continue">
+</form>
+<div>
+{% for message in get_flashed_messages() %} 
+<strong>*** {{ message }} ***</strong>
+{% endfor %}
+</div>
+<h1>Don't see the song you're looking for?</h1>
+<a href="/song/more">Click here to get more results</a>
+</body>
+</html>

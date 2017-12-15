@@ -1,0 +1,7 @@
+<h1>To whom would you like to send your email?</h1>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+    {{ form.email.label }} {{ form.email() }}
+    {{ form.submit.label }}{{ form.submit() }}
+</form>
