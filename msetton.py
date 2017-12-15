@@ -41,7 +41,7 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') # TODO export to y
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_SUBJECT_PREFIX'] = '[Songs App]'
 app.config['MAIL_SENDER'] = 'Admin <>' # TODO fill in email
-app.config['ADMIN'] = os.environ.get('ADMIN') or "admin@example.com" # If Admin in environ variable / in prod or this fake email
+app.config['ADMIN'] = os.environ.get('ADMIN') or "marielse4321@gmail.com" # If Admin in environ variable / in prod or this fake email
 app.config['HEROKU_ON'] = os.environ.get('HEROKU')
 
 # Set up Flask debug and necessary additions to app
@@ -289,12 +289,13 @@ def song_status():
         url = '/send/' + track.replace(' ', '*') + '/' + artist.replace(' ', '*')
     return render_template('save_and_send.html', song_name=track, song_artist=artist, url=url)
 
-@app.route('/send/<song>/<artist>')
+@app.route('/send/<song>/<artist>',methods=["GET","POST"])
 def send_song(song, artist):
     # do something
     form = sendEamil()
     if form.validate_on_submit():
-        print('inside form')
+        email = form.email.data
+        send_email(email, 'This is a cool song', 'mail/new_song', song_name=song, song_artist=artist)
     return render_template('email_friend.html',form=form)
 
 
