@@ -28,7 +28,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__)
 app.static_folder = 'static'
 app.config['SECRET_KEY'] = 'hardtoguessstring'
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/final_364"  
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URL') or "postgresql://localhost/msetton_364_final"  
 # Lines for db setup so it will work as expected
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -60,7 +60,7 @@ login_manager.init_app(app) # set up login manager
 ## Set up Shell context so it's easy to use the shell to debug
 # Define function
 def make_shell_context():
-    return dict( app=app, db=db, Song=Song, Artist=Artist, User=User, Playlist=Playlist)
+    return dict( app=app, db=db, Song=Song, Artist=Artist, User=User)#, Playlist=Playlist)
 # Add function use to manager
 manager.add_command("shell", Shell(make_context=make_shell_context))
 
@@ -87,10 +87,10 @@ def send_email(to, subject, template, **kwargs): # kwargs = 'keyword arguments',
 ##### Set up Models #####
 
 # Set up association Table between person and songs
-collections = db.Table('collections', db.Column('user_id',db.Integer, db.ForeignKey('person.id')),db.Column('song_id',db.Integer, db.ForeignKey('songs.id')))
+#collections = db.Table('collections', db.Column('user_id',db.Integer, db.ForeignKey('person.id')),db.Column('song_id',db.Integer, db.ForeignKey('songs.id')))
 
-# Set up association Table between songs and playlists
-on_playlist = db.Table('on_playlist',db.Column('user_id', db.Integer, db.ForeignKey('songs.id')),db.Column('playlist_id',db.Integer, db.ForeignKey('playlists.id')))
+# Set up association Table between artists and albums
+collections = db.Table('collections',db.Column('album_id',db.Integer, db.ForeignKey('albums.id')),db.Column('artist_id',db.Integer, db.ForeignKey('artists.id')))
 
 # Special model for users to log in
 class User(UserMixin, db.Model):
@@ -98,8 +98,9 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, index=True)
     email = db.Column(db.String(64), unique=True, index=True)
-    playlists = db.relationship('Playlist', backref='User')
+    #playlists = db.relationship('Playlist', backref='User')
     password_hash = db.Column(db.String(128))
+    friends = db.relationship('Person',backref='User')
 
     @property
     def password(self):
@@ -115,15 +116,17 @@ class User(UserMixin, db.Model):
 class Person(db.Model):
     __tablename__ = "person"
     id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(64), db.ForeignKey("users.email"))
+    email = db.Column(db.String(64))
     name = db.Column(db.String(64))
-    song_id = db.relationship('Song',secondary=collections,backref=db.backref('person',lazy='dynamic'),lazy='dynamic')
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    #song_id = db.relationship('Song',secondary=collections,backref=db.backref('person',lazy='dynamic'),lazy='dynamic')
 
 class Song(db.Model):
     __tablename__ = "songs"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(64))
     artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"))
+    album_id = db.Column(db.Integer, db.ForeignKey("albums.id"))
 
 class Artist(db.Model):
     __tablename__ = "artists"
@@ -131,13 +134,20 @@ class Artist(db.Model):
     name = db.Column(db.String(64))
     songs = db.relationship('Song',backref='Artist')
 
-class Playlist(db.Model):
-    __tablename__ = "playlists"
+class Album(db.Model):
+    __tablename__ = "albums"
     id = db.Column(db.Integer, primary_key=True)
-    songs = db.relationship('Song',secondary=on_playlist,backref=db.backref('playlists',lazy='dynamic'),lazy='dynamic')
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    name = db.Column(db.String(64))
+    artists = db.relationship('Artist',secondary=collections,backref=db.backref('albums',lazy='dynamic'),lazy='dynamic')
+    songs = db.relationship('Song',backref='Album')
 
-## DB load functions
+# class Playlist(db.Model):
+#     __tablename__ = "playlists"
+#     id = db.Column(db.Integer, primary_key=True)
+#     songs = db.relationship('Song',secondary=on_playlist,backref=db.backref('playlists',lazy='dynamic'),lazy='dynamic')
+#     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+# DB load functions
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id)) # returns User object or None
@@ -191,15 +201,43 @@ def get_or_create_artist(db_session,artist_name):
         db_session.commit()
         return artist
 
-def get_or_create_song(db_session, song_title, song_artist):
+def get_or_create_song(db_session, song_title, song_artist, song_album):
     artist = get_or_create_artist(db_session, song_artist)
+    album = get_or_create_album(db_session, song_album, artists_list=[song_artist])
+    print('created album')
     song = db_session.query(Song).filter_by(title=song_title, artist_id=artist.id).first()
+    print("created artist")
     if song:
         return song
+    print(song_album)
+    print(song_artist)
     song = Song(title=song_title,artist_id=artist.id)
     db_session.add(song)
     db_session.commit()
     return song
+
+def get_or_create_person(db_session, person_name, person_email):
+    person = db_session.query(Person).filter_by(name=person_name, user_id=current_user.id).first()
+    if person:
+        return person
+    person = Person(name=person_name, email=person_email, user_id=current_user.id)
+    db_session.add(person)
+    db_session.commit()
+    return person
+
+def get_or_create_album(db_session, album_name, artists_list=[]):
+    album = db_session.query(Album).filter_by(name=album_name).first() # by name filtering for album
+    if album:
+        return album
+    else:
+        album = Album(name=album_name)
+        for artist in artists_list:
+            artist = get_or_create_artist(db_session,artist)
+            album.artists.append(artist)
+        db_session.add(album)
+        db_session.commit()
+    return album
+
 
 ##### Set up Controllers (view functions) #####
 
@@ -216,6 +254,15 @@ def internal_server_error(e):
 @app.route('/')
 def index():
     return redirect('song/normal')
+
+@app.route('/all_songs')
+def see_all_songs():
+    all_songs = [] 
+    songs = Song.query.all()
+    for song in songs:
+        artist = Artist.query.filter_by(id=song.artist_id).first()
+        all_songs.append((song.title, artist.name))
+    return render_template('all_songs.html',all_songs=all_songs)
 
 ## Login routes
 @app.route('/login',methods=["GET","POST"])
@@ -259,9 +306,11 @@ def song_input(more):
         song_list = []
         #finalString = 'The top 5 artists who sing {} are: '.format(song)
         params_dict = song.replace(' ', '*') + ":"
+        print(json.loads(x)['results'][0])
         for i in range(10):
             artist = json.loads(x)['results'][i]['artistName']
-            dictor = {'song':song, 'artist':artist, 'both':params_dict+artist.replace(' ', '*')}
+            album = json.loads(x)['results'][i]['collectionCensoredName']
+            dictor = {'song':song, 'artist':artist, 'both':params_dict+artist.replace(' ', '*')+':'+album.replace(' ','*')}
             song_list.append(dictor)
             #finalString += json.loads(x)['results'][i]['artistName']
         if more == 'normal':
@@ -281,23 +330,66 @@ def song_status():
         track = choice[0]
         if '*' in track:
             track = track.replace('*', ' ')
-        print(track)
         artist = choice[1].replace('*', ' ')
-        print(artist)
+        album = choice[2].replace('*', ' ')
         # add the song to the song/artist table
-        get_or_create_song(db.session, track, artist)
+        get_or_create_song(db.session, track, artist, album)
         url = '/send/' + track.replace(' ', '*') + '/' + artist.replace(' ', '*')
     return render_template('save_and_send.html', song_name=track, song_artist=artist, url=url)
 
 @app.route('/send/<song>/<artist>',methods=["GET","POST"])
+@login_required
 def send_song(song, artist):
-    # do something
+    url = 'http://localhost:5000/see_friends/' + song + '/' + artist
     form = sendEamil()
     if form.validate_on_submit():
         email = form.email.data
+        song = song.replace('*', ' ')
+        artist = artist.replace('*', ' ')
         send_email(email, 'This is a cool song', 'mail/new_song', song_name=song, song_artist=artist)
-    return render_template('email_friend.html',form=form)
+        return redirect(url_for('index'))
+    return render_template('email_friend.html',form=form, url=url)
 
+@app.route('/send_from_friends/<song>/<artist>',methods=["GET","POST"])
+def send_from_friends(song, artist):
+    if request.method == 'GET':
+        print('about to send email from friends')
+        result = request.args
+        email = result.get('email')
+        song = song.replace('*', ' ')
+        artist = artist.replace('*', ' ')
+        send_email(email, 'This is a cool song', 'mail/new_song', song_name=song, song_artist=artist)
+    return redirect(url_for('index'))
+
+
+@app.route('/see_friends/<name>/<artist>')
+@login_required
+def saved_friends(name, artist):
+    # keep track of the song name and artist
+    url = 'http://localhost:5000/send_from_friends/' + name + '/' + artist
+    print("in see_friends, url=")
+    print(url)
+    friend_list = []
+    friends = Person.query.filter_by(user_id=current_user.id).all()
+    for friend in friends:
+        friend_list.append((friend.name,friend.email))
+    return render_template('saved_friends.html', friend_list=friend_list, length=len(friend_list), url=url)
+
+@app.route('/friend/form')
+@login_required
+def friend_form():
+    return render_template('add_friend.html')
+
+@app.route('/add_friends', methods=["GET","POST"])
+def add_friends():
+    print("in add_friends")
+    if request.method == "GET":
+        print("getting results")
+        result = request.args
+        person_name = result.get('name')
+        person_email = result.get('email')
+        get_or_create_person(db.session, person_name, person_email)
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     db.create_all()

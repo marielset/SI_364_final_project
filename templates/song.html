@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Main Page</title>
+</head>
+<body>
 <h1>Enter the song you want to see</h1>
 
 <form method="POST">
@@ -5,3 +11,15 @@
     {{ form.song.label }} {{ form.song() }}
     {{ form.submit.label }}{{ form.submit() }}
 </form>
+<br>
+<a href="{{ url_for('see_all_songs') }}">Click here</a> to see the songs already saved.
+<br>
+<a href="{{ url_for('friend_form') }}">Click here</a> to add a friend to your friend database.
+<div>
+{% for message in get_flashed_messages() %}
+{{ message }}
+{% endfor %}
+</div>
+
+</body>
+</html>

@@ -1,6 +1,12 @@
 <html>
 <title>Songs</title>
 <body>
+{% if current_user.is_authenticated %}
+    <a href="{{ url_for('logout') }}">Sign Out {{current_user.username}}</a>
+{% else %}
+    <a href="{{ url_for('login') }}">Sign In</a>
+{% endif %}
+<br>
 <form action="http://localhost:5000/song_status" method="GET">
   <ul>
     {% for num in range(number) %}

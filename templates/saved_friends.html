@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Saved friends</title>
+</head>
+<body>
+{% if friend_list %}
+<h2>Here are your friends:</h2>
+<form method = "GET" action={{url}}>
+{% for num in range(length) %}
+<input type="radio" name="email" value={{friend_list[num][1]}}>{{ friend_list[num][0] }}</input></br>
+{% endfor %}
+<input type="submit" value="Submit">
+</form>
+{% else %}
+<h2>You have not saved any friends</h2>
+{% endif %}
+<br>
+
+<h3>Or, add a new friend.</h3>
+<form method = "" action="http://localhost:5000/add_friends">
+<h3>Enter your friend's name : <input type="text" name="name" value=""></h3>
+<h3>Enter your friend's email : <input type="text" name="email" value=""></h3>
+<input type="submit" value="Submit">
+
+<div>
+{% for message in get_flashed_messages() %}
+{{ message }}
+{% endfor %}
+</div>
+
+</body>
+</html>
