@@ -98,7 +98,6 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, index=True)
     email = db.Column(db.String(64), unique=True, index=True)
-    #playlists = db.relationship('Playlist', backref='User')
     password_hash = db.Column(db.String(128))
     friends = db.relationship('Person',backref='User')
 
@@ -119,7 +118,6 @@ class Person(db.Model):
     email = db.Column(db.String(64))
     name = db.Column(db.String(64))
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
-    #song_id = db.relationship('Song',secondary=collections,backref=db.backref('person',lazy='dynamic'),lazy='dynamic')
 
 class Song(db.Model):
     __tablename__ = "songs"
@@ -140,12 +138,6 @@ class Album(db.Model):
     name = db.Column(db.String(64))
     artists = db.relationship('Artist',secondary=collections,backref=db.backref('albums',lazy='dynamic'),lazy='dynamic')
     songs = db.relationship('Song',backref='Album')
-
-# class Playlist(db.Model):
-#     __tablename__ = "playlists"
-#     id = db.Column(db.Integer, primary_key=True)
-#     songs = db.relationship('Song',secondary=on_playlist,backref=db.backref('playlists',lazy='dynamic'),lazy='dynamic')
-#     user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
 
 # DB load functions
 @login_manager.user_loader
@@ -204,14 +196,10 @@ def get_or_create_artist(db_session,artist_name):
 def get_or_create_song(db_session, song_title, song_artist, song_album):
     artist = get_or_create_artist(db_session, song_artist)
     album = get_or_create_album(db_session, song_album, artists_list=[song_artist])
-    print('created album')
     song = db_session.query(Song).filter_by(title=song_title, artist_id=artist.id).first()
-    print("created artist")
     if song:
         return song
-    print(song_album)
-    print(song_artist)
-    song = Song(title=song_title,artist_id=artist.id)
+    song = Song(title=song_title,artist_id=artist.id,album_id=album.id)
     db_session.add(song)
     db_session.commit()
     return song
@@ -305,8 +293,8 @@ def song_input(more):
         #print(x)
         song_list = []
         #finalString = 'The top 5 artists who sing {} are: '.format(song)
+        song = json.loads(x)['results'][0]['trackName']
         params_dict = song.replace(' ', '*') + ":"
-        print(json.loads(x)['results'][0])
         for i in range(10):
             artist = json.loads(x)['results'][i]['artistName']
             album = json.loads(x)['results'][i]['collectionCensoredName']
@@ -324,8 +312,6 @@ def song_status():
     if request.method == 'GET':
         result = request.args
         choice = result.get('choice')
-        print("choice = ")
-        print(choice)
         choice = choice.split(':')
         track = choice[0]
         if '*' in track:
@@ -353,7 +339,6 @@ def send_song(song, artist):
 @app.route('/send_from_friends/<song>/<artist>',methods=["GET","POST"])
 def send_from_friends(song, artist):
     if request.method == 'GET':
-        print('about to send email from friends')
         result = request.args
         email = result.get('email')
         song = song.replace('*', ' ')
@@ -367,8 +352,6 @@ def send_from_friends(song, artist):
 def saved_friends(name, artist):
     # keep track of the song name and artist
     url = 'http://localhost:5000/send_from_friends/' + name + '/' + artist
-    print("in see_friends, url=")
-    print(url)
     friend_list = []
     friends = Person.query.filter_by(user_id=current_user.id).all()
     for friend in friends:
@@ -382,9 +365,7 @@ def friend_form():
 
 @app.route('/add_friends', methods=["GET","POST"])
 def add_friends():
-    print("in add_friends")
     if request.method == "GET":
-        print("getting results")
         result = request.args
         person_name = result.get('name')
         person_email = result.get('email')
